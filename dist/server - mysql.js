@@ -128,27 +128,36 @@ app.post('/v1/auth/signin', function (req, res) {
       "error": "email is invalid"
     });
   }
-  db.all('select * from users where email=\'' + email + '\' and password=\'' + password + '\'', [], function (err, result) {
-    if (err) {
-      console.log(err);
-    } else {
+  var sql = 'select * from users where email=\'' + email + '\' and password=\'' + password + '\'';
+  // db.query(sql, (err, result) => {
+  //   if (err) {
+  //     console.log(err)
+  //   } else {
 
-      if (result.length > 0) {
-        var payload = { user_id: result[0].user_id };
-        var token = jwt.sign(payload, 'secretkey');
-        res.status(200).json({
-          "status": "success",
-          "data": {
-            "token": token,
-            "userId": payload.user_id
-          }
-        });
-      } else {
-        res.status(401).json({
-          "status": "forbidden",
-          "error": "No account match for specified username and password"
-        });
-      }
+  //     if (result.length > 0) {
+  //       let payload = { user_id: result[0].user_id }
+  //       let token = jwt.sign(payload, 'secretkey')
+  //       res.status(200).json({
+  //         "status": "success",
+  //         "data": {
+  //           "token": token,
+  //           "userId": payload.user_id
+  //         }
+  //       })
+  //     } else {
+  //       res.status(401).json({
+  //         "status": "forbidden",
+  //         "error": "No account match for specified username and password"
+  //       })
+
+  //     }
+  //   }
+  // })
+  db.all(sql, [], function (err, rows) {
+    if (err) {
+      return res.status(400).json({ err: err });
+    } else {
+      console.log(rows);
     }
   });
 });
@@ -156,7 +165,7 @@ app.post('/v1/auth/signin', function (req, res) {
 //get all users
 app.get('/v1/users', verifyToken, function (req, res) {
   var sql = 'select * from users';
-  db.all(sql, [], function (err, result) {
+  db.query(sql, function (err, result) {
     if (err) {
       return res.status(400).json({ err: err });
     } else {
@@ -221,21 +230,25 @@ app.post('/v1/articles', verifyToken, function (req, res) {
   if (!title || !article) {
     return res.status(400).json({ "status": "invalid input", "error": "title and article must be supplied" });
   } else {
-    db.run('insert into article (title, article, users_user_id) values (?,?,?)', [title, article, req.userId], function (err) {
+    var sql = 'insert into article (title, article, users_user_id) values("' + title + '","' + article + '",' + req.userId + ')';
+    db.query(sql, function (err, result) {
       if (err) {
-        return res.status(400).json({ err: err });
-      }
-      db.all('select * from article where article_id = ' + this.lastID, [], function (err, rows) {
-        return res.status(200).json({
-          "status": "success",
-          "data": {
-            "message": "article successfully posted",
-            "articleId": rows[0].article_id,
-            "createdOn": rows[0].createdOn,
-            "title": rows[0].title
-          }
+        return res.status(400).json({ "status": "error", "error": "unable to add article to database" });
+      } else {
+        sql = 'select * from article where article_id = ' + result.insertId;
+        db.query(sql, function (err, details) {
+          return res.json({
+            "status": "success",
+            "data": {
+              "message": "Article was created successfully",
+              "articleId": details[0].article_id,
+              "createdOn": details[0].dateCreated,
+              "title": details[0].title,
+              "flagged": details[0].flagged
+            }
+          });
         });
-      });
+      }
     });
   }
 });
@@ -248,23 +261,18 @@ app.patch('/v1/articles/:articleId', verifyToken, function (req, res) {
   if (title === '' || article === '') {
     return res.status(400).json({ "status": "invalid input", "error": "title and article must be supplied" });
   } else {
-    var sql = 'update article set title =?, article=? where article_id=? and users_user_id=?';
-    db.run(sql, [title, article, article_id, req.userId], function (err, rows) {
+    var sql = 'update article set title = "' + title + '", article="' + article + '" where article_id=' + article_id + ' and users_user_id=' + req.userId;
+    db.query(sql, function (err, result) {
       if (err) {
-        return res.status(400).json({ "status": "update failed", "error": "unable to update the article" });
+        return res.status(520).json({ "status": "update failed", "error": "unable to update the article" });
       } else {
-        db.all('select * from article where article_id = ' + article_id, [], function (err, rows) {
-          if (err) {
-            return res.status(400).json({ err: err });
+        return res.status(200).json({
+          "status": "success",
+          "data": {
+            "message": "Article successfully updated",
+            "title": title,
+            "article": article
           }
-          return res.status(200).json({
-            "status": "success",
-            "data": {
-              "message": "Article successfully updated",
-              "title": rows[0].title,
-              "article": rows[0].article
-            }
-          });
         });
       }
     });
@@ -274,8 +282,8 @@ app.patch('/v1/articles/:articleId', verifyToken, function (req, res) {
 //delete an article
 app.delete('/v1/articles/:articleId', verifyToken, function (req, res) {
   var article_id = req.params.articleId;
-  var sql = 'delete from article where article_id = ? and users_user_id=?';
-  db.run(sql, [article_id, req.userId], function (err) {
+  var sql = 'delete from article where article_id = ' + article_id + ' and users_user_id=' + req.userId;
+  db.query(sql, function (err, result) {
     if (err) {
       console.log(err);
       return res.json({ "status": "error", "error": "unable to delete the record from database" });
@@ -283,7 +291,7 @@ app.delete('/v1/articles/:articleId', verifyToken, function (req, res) {
       return res.status(200).json({
         "status": "success",
         "data": {
-          "message": 'Article with id ' + article_id + ' successfully deleted'
+          "message": "Article successfully deleted"
         }
       });
     }
@@ -300,26 +308,26 @@ app.post('/v1/articles/:articleId/comment', verifyToken, function (req, res) {
   //check if the comment contains at least a character or symbol
   if (patt.test(comment) || patt1.test(comment)) {
     //check if the article to be commented exists
-    var sql = 'select * from article where article_id = ?';
-    db.all(sql, [article_id], function (err, rows) {
-      var answer = rows[0];
-      if (rows.length === 0) {
+    var sql = 'select * from article where article_id = ' + article_id;
+    db.query(sql, function (err, result) {
+      var answer = result[0];
+      if (result.length === 0) {
         return res.status(404).json({ "status": "failed", "error": "article does not exists" });
       } else {
         //if article exists, then add a comment
-        sql = 'insert into article_comment (users_user_id, article_article_id, comment) values (?,?,?)';
-        db.run(sql, [req.userId, article_id, comment], function (err) {
+        sql = 'insert into article_comment (users_user_id, article_article_id, comment) values (' + req.userId + ',' + article_id + ',\'' + comment + '\')';
+        db.query(sql, function (err, details) {
           if (err) {
             return res.json({ "status": "error", "error": "unable to add comment" });
           } else {
             //get the creation date of the comment
-            sql = 'select createdOn from article_comment where comment_id = ?';
-            db.all(sql, [this.lastID], function (err, rows1) {
+            sql = 'select createdOn from article_comment where comment_id = ' + details.insertId;
+            db.query(sql, function (err, result_1) {
               return res.status(201).json({
                 "status": "success",
                 "data": {
                   "message": "comment successfully created",
-                  "createdOn": rows1[0].createdOn,
+                  "createdOn": result_1[0].createdOn,
                   "articleTitle": answer.title,
                   "article": answer.article,
                   "comment": comment
@@ -336,15 +344,15 @@ app.post('/v1/articles/:articleId/comment', verifyToken, function (req, res) {
 //get an article
 app.get('/v1/articles/:articleId', verifyToken, function (req, res) {
   var article_id = req.params.articleId;
-  var sql = 'select * from article where article_id = ?';
+  var sql = 'select * from article where article_id = ' + article_id;
   //if article is found
-  db.all(sql, [article_id], function (err, rows) {
-    if (rows.length === 0) {
+  db.query(sql, function (err, result) {
+    var answer = result[0];
+    if (result.length === 0) {
       return res.status(404).json({ "status": "Not found", "message": "article doesnt exist or already deleted" });
     } else {
-      var answer = rows[0];
-      sql = 'select * from article_comment where article_article_id = ? and users_user_id=?';
-      db.all(sql, [article_id, req.userId], function (err, details) {
+      sql = 'select * from article_comment where article_article_id = ' + article_id + ' and users_user_id=' + req.userId;
+      db.query(sql, function (err, details) {
 
         return res.status(200).json({
           "status": "success",
@@ -368,20 +376,20 @@ app.post('/v1/gifs', verifyToken, upload.single('image'), function (req, res, ne
       "status": "bad request", "error": "No gif image specified"
     });
   } else {
-    var sql = 'insert into gifs (imageUrl, title, users_user_id) values (?,?,?)';
-    db.run(sql, ['images/' + req.file.originalname, req.body.title || 'no title', req.userId], function (err) {
+    var sql = 'insert into gifs (imageUrl, title, users_user_id) values ("' + ('images/' + req.file.originalname) + '","' + (req.body.title || 'no title') + '",' + req.userId + ')';
+    db.query(sql, function (err, result) {
       if (err) {
         return res.status(500).json({ "status": "failed", "error": err });
       } else {
-        sql = 'select * from gifs where gif_id=? and users_user_id=?';
-        db.all(sql, [this.lastID, req.userId], function (err, rows) {
+        sql = 'select * from gifs where gif_id=' + result.insertId + ' and users_user_id=' + req.userId;
+        db.query(sql, function (err, result) {
           return res.status(201).json({
             "status": "success",
             "data": {
-              "gifId": rows[0].gif_id,
+              "gifId": result.gif_id,
               "message": "GIF image successfully posted",
-              "createdOn": rows[0].dateCreated,
-              "title": rows[0].title,
+              "createdOn": result.dateCreated,
+              "title": result.title,
               "imageUrl": 'images/' + req.file.originalname
             }
           });
@@ -394,8 +402,8 @@ app.post('/v1/gifs', verifyToken, upload.single('image'), function (req, res, ne
 //delete a gif
 app.delete('/v1/gifs/:gifId', verifyToken, function (req, res) {
   var gifId = req.params.gifId;
-  var sql = 'delete from gifs where gif_id = ?';
-  db.run(sql, [gifId], function (err) {
+  var sql = 'delete from gifs where gif_id = ' + gifId;
+  db.query(sql, function (err, result) {
     if (err) {
       return res.status(400).json({ "status": "failed", "error": "unable to delete specified gif image" });
     } else {
@@ -419,21 +427,21 @@ app.post('/v1/gifs/:gifId/comment', verifyToken, function (req, res) {
   //check if the comment contains at least a character or symbol
   if (patt.test(comment) || patt1.test(comment)) {
     //check if the article to be commented exists
-    var sql = 'select * from gifs where gif_id = ?';
-    db.all(sql, [gifId], function (err, rows) {
-      if (rows.length === 0) {
+    var sql = 'select * from gifs where gif_id = ' + gifId;
+    db.query(sql, function (err, result) {
+      var answer = result[0];
+      if (result.length === 0) {
         return res.status(404).json({ "status": "failed", "error": "gif does not exists" });
       } else {
-        var answer = rows[0];
         //if article exists, then add a comment
-        sql = 'insert into gif_comment (comment, gifs_gif_id, users_user_id) values (?,?,?)';
-        db.run(sql, [comment, gifId, req.userId], function (err) {
+        sql = 'insert into gif_comment (comment, gifs_gif_id, users_user_id) values ("' + comment + '",' + gifId + ',' + req.userId + ')';
+        db.query(sql, function (err, details) {
           if (err) {
             return res.json({ "status": "error", "error": "unable to add comment" });
           } else {
             //get the creation date of the comment
-            sql = 'select createdOn from gif_comment where gif_comment_id = ?';
-            db.all(sql, [this.lastID], function (err, result_1) {
+            sql = 'select createdOn from gif_comment where gif_comment_id = ' + details.insertId;
+            db.query(sql, function (err, result_1) {
               return res.status(201).json({
                 "status": "success",
                 "data": {
@@ -454,15 +462,16 @@ app.post('/v1/gifs/:gifId/comment', verifyToken, function (req, res) {
 //get a specific gif
 app.get('/v1/gifs/:gifId', verifyToken, function (req, res) {
   var gifId = req.params.gifId;
-  var sql = 'select * from gifs where gif_id = ?';
+  var sql = 'select * from gifs where gif_id = ' + gifId;
   //if article is found
-  db.all(sql, [gifId], function (err, rows) {
-    if (rows.length === 0) {
+  db.query(sql, function (err, result) {
+    var answer = result[0];
+    if (result.length === 0) {
       return res.status(404).json({ "status": "Not found", "message": "gif doesn't exist or already deleted" });
     } else {
-      var answer = rows[0];
-      sql = 'select * from gif_comment where gifs_gif_id = ? and users_user_id=?';
-      db.all(sql, [gifId, req.userId], function (err, details) {
+      sql = 'select * from gif_comment where gifs_gif_id = ' + gifId + ' and users_user_id=' + req.userId;
+      db.query(sql, function (err, details) {
+
         return res.status(200).json({
           "status": "success",
           "data": {
@@ -490,18 +499,11 @@ var compare = function compare(a, b) {
 //get all articles and gif
 app.get('/v1/feed', verifyToken, function (req, res) {
   var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname\nfrom article\njoin users on users.user_id = article.users_user_id;\n  ';
-  db.all(sql, [], function (err, rows) {
-    var result = rows;
-    if (err) {
-      return res.json({ err: err });
-    } else {
-
-      var _sql = 'select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname\n      from gifs join users on users.user_id = gifs.users_user_id';
-
-      db.all(_sql, [], function (err, details) {
-        var result1 = details;
-        console.log(result1);
-        var all_feed = result.concat(result1);
+  db.query(sql, function (err, result) {
+    if (err) {} else {
+      var _sql = 'select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname from gifs join users on users.user_id = gifs.users_user_id';
+      db.query(_sql, function (err, details) {
+        var all_feed = result.concat(details);
         all_feed.sort(compare);
         res.status(200).json({
           "status": "success",
@@ -514,20 +516,16 @@ app.get('/v1/feed', verifyToken, function (req, res) {
 
 //get all article and gif for a single user
 app.get('/v1/feed/:userId', verifyToken, function (req, res) {
-  var sql = 'select * from article where users_user_id = ?';
+  var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname\nfrom article\njoin users on users.user_id = article.users_user_id\nwhere users_user_id=' + req.userId + ';\n  ';
 
-  db.all(sql, [req.userId], function (err, rows) {
+  db.query(sql, function (err, result) {
     if (err) {
-      return res.json({ err: err });
+      console.log(err);
     } else {
-      var result = rows;
-      var _sql2 = 'select * from gifs where users_user_id = ?';
-      db.all(_sql2, [req.userId], function (err, rows) {
-        if (err) {
-          return res.json({ err: err });
-        }
-        var gif_result = rows;
-        var all_feed = result.concat(gif_result);
+      var _sql2 = '\n      select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname from gifs\n      join users on users.user_id = gifs.users_user_id\n      where users_user_id=' + req.userId;
+
+      db.query(_sql2, function (err, details) {
+        var all_feed = result.concat(details);
         all_feed.sort(compare);
         res.status(200).json({
           "status": "success",
@@ -541,7 +539,7 @@ app.get('/v1/feed/:userId', verifyToken, function (req, res) {
 //get all flagged post
 app.get('/v1/flagged', verifyToken, function (req, res) {
   var sql = 'select * from article where flagged = \'t\' ';
-  db.all(sql, [], function (err, result) {
+  db.query(sql, function (err, result) {
     if (err) {
       return res.status(400).json({ err: err });
     } else {
@@ -557,18 +555,19 @@ app.get('/v1/flagged', verifyToken, function (req, res) {
 app.post('/v1/flagged/:articleId', verifyToken, function (req, res) {
   var article_id = req.params.articleId;
   var flagged = 't';
-  var sql = 'select * from article where article_id = ?';
-  db.all(sql, [article_id], function (err, result) {
+  var sql = 'select * from article where article_id = ' + article_id;
+  db.query(sql, function (err, result) {
+    console.log(result);
     if (err) {
       return res.status(400).json({ err: err });
     } else {
       flagged = result[0].flagged;
       if (flagged == 'f') {
-        sql = 'update article set flagged = \'t\' where article_id = ?';
+        sql = 'update article set flagged = \'t\' where article_id = ' + article_id;
       } else {
-        sql = 'update article set flagged = \'f\' where article_id = ?';
+        sql = 'update article set flagged = \'f\' where article_id = ' + article_id;
       }
-      db.run(sql, [article_id], function (err) {
+      db.query(sql, function (err, result) {
         if (err) {
           return res.status(400).json({ err: err });
         } else {
@@ -581,11 +580,10 @@ app.post('/v1/flagged/:articleId', verifyToken, function (req, res) {
     }
   });
 });
-
 app.listen(port, function (err) {
   if (err) {
     console.log(err);
   }
   console.log(_chalk2.default.red('listening of port ' + port + '. starting app in dev mode'));
 });
-//# sourceMappingURL=server.js.map
+//# sourceMappingURL=server - mysql.js.map
