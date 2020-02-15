@@ -45,8 +45,8 @@ const upload = multer({ storage: storage, /*fileFilter*/ });
 //   password: 'Oluranti08056965',
 //   database: 'teamwork'
 // })
-const db = new sqlite3.Database('teamwork.db', (err) => {
-  if (err) {
+const db = new sqlite3.Database('teamwork.db', (err)=>{
+  if(err){
     return console.log(err.message);
   }
   console.log('Connected to database')
@@ -109,38 +109,47 @@ app.post('/v1/auth/signin', (req, res) => {
       "error": "email is invalid"
     })
   }
-  db.all(`select * from users where email='${email}' and password='${password}'`, [], (err, result) => {
-    if (err) {
-      console.log(err)
+  let sql = `select * from users where email='${email}' and password='${password}'`
+  // db.query(sql, (err, result) => {
+  //   if (err) {
+  //     console.log(err)
+  //   } else {
+
+  //     if (result.length > 0) {
+  //       let payload = { user_id: result[0].user_id }
+  //       let token = jwt.sign(payload, 'secretkey')
+  //       res.status(200).json({
+  //         "status": "success",
+  //         "data": {
+  //           "token": token,
+  //           "userId": payload.user_id
+  //         }
+  //       })
+  //     } else {
+  //       res.status(401).json({
+  //         "status": "forbidden",
+  //         "error": "No account match for specified username and password"
+  //       })
+
+  //     }
+  //   }
+  // })
+  db.all(sql, [], (err, rows) => {
+    if(err){
+      return res.status(400).json({err})
     } else {
-
-      if (result.length > 0) {
-        let payload = { user_id: result[0].user_id }
-        let token = jwt.sign(payload, 'secretkey')
-        res.status(200).json({
-          "status": "success",
-          "data": {
-            "token": token,
-            "userId": payload.user_id
-          }
-        })
-      } else {
-        res.status(401).json({
-          "status": "forbidden",
-          "error": "No account match for specified username and password"
-        })
-
-      }
+      console.log(rows);
     }
   })
+
 })
 
 //get all users
-app.get('/v1/users', verifyToken, (req, res) => {
+app.get('/v1/users', verifyToken, (req, res)=> {
   let sql = `select * from users`;
-  db.all(sql, [], (err, result) => {
-    if (err) {
-      return res.status(400).json({ err })
+  db.query(sql, (err, result)=> {
+    if(err){
+      return res.status(400).json({err})
     } else {
       return res.status(200).json(result);
     }
@@ -177,8 +186,8 @@ app.post('/v1/auth/users', upload.single('userImage'), (req, res) => {
         "error": "email is invalid"
       })
     }
-    let sql = `insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values ('${firstName}','${lastName}','${email}','${password}','${gender}','${jobrole}','${dept}','${address}','${'images/' + req.file.originalname}')`
-    db.all(sql, [], (err, result) => {
+    let sql = `insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values ('${firstName}','${lastName}','${email}','${password}','${gender}','${jobrole}','${dept}','${address}','${'images/'+req.file.originalname}')`
+    db.all(sql, [],(err, result) => {
       if (err) {
         console.log("there was an error executing script")
         res.send(err)
@@ -198,29 +207,32 @@ app.post('/v1/auth/users', upload.single('userImage'), (req, res) => {
 
 //add an article
 app.post('/v1/articles', verifyToken, (req, res) => {
-  const title = req.body.title || 'no title';
-  const article = req.body.article;
-  const user_id = req.user_id;
+  const title = req.body.title || 'no title'
+  const article = req.body.article
+  const user_id = req.user_id
   if (!title || !article) {
     return res.status(400).json({ "status": "invalid input", "error": "title and article must be supplied" });
   } else {
-    db.run(`insert into article (title, article, users_user_id) values (?,?,?)`, [title, article, req.userId], function (err) {
+    let sql = `insert into article (title, article, users_user_id) values("${title}","${article}",${req.userId})`
+    db.query(sql, (err, result) => {
       if (err) {
-        return res.status(400).json({ err })
-      }
-      db.all(`select * from article where article_id = ${this.lastID}`, [], function (err, rows) {
-        return res.status(200).json({
-          "status": "success",
-          "data": {
-            "message": "article successfully posted",
-            "articleId": rows[0].article_id,
-            "createdOn": rows[0].createdOn,
-            "title": rows[0].title
-          }
+        return res.status(400).json({ "status": "error", "error": "unable to add article to database" })
+      } else {
+        sql = `select * from article where article_id = ${result.insertId}`;
+        db.query(sql, (err, details) => {
+          return res.json({
+            "status": "success",
+            "data": {
+              "message": "Article was created successfully",
+              "articleId": details[0].article_id,
+              "createdOn": details[0].dateCreated,
+              "title": details[0].title,
+              "flagged": details[0].flagged
+            }
+          })
         })
-      })
-    }
-    )
+      }
+    })
   }
 })
 
@@ -232,25 +244,19 @@ app.patch('/v1/articles/:articleId', verifyToken, (req, res) => {
   if (title === '' || article === '') {
     return res.status(400).json({ "status": "invalid input", "error": "title and article must be supplied" });
   } else {
-    let sql = `update article set title =?, article=? where article_id=? and users_user_id=?`;
-    db.run(sql, [title, article, article_id, req.userId], function (err, rows) {
+    const sql = `update article set title = "${title}", article="${article}" where article_id=${article_id} and users_user_id=${req.userId}`;
+    db.query(sql, (err, result) => {
       if (err) {
-        return res.status(400).json({ "status": "update failed", "error": "unable to update the article" })
+        return res.status(520).json({ "status": "update failed", "error": "unable to update the article" })
       } else {
-        db.all(`select * from article where article_id = ${article_id}`, [], function (err, rows) {
-          if (err) {
-            return res.status(400).json({ err })
+        return res.status(200).json({
+          "status": "success",
+          "data": {
+            "message": "Article successfully updated",
+            "title": title,
+            "article": article
           }
-          return res.status(200).json({
-            "status": "success",
-            "data": {
-              "message": "Article successfully updated",
-              "title": rows[0].title,
-              "article": rows[0].article
-            }
-          })
-        });
-
+        })
       }
     })
   }
@@ -260,8 +266,8 @@ app.patch('/v1/articles/:articleId', verifyToken, (req, res) => {
 //delete an article
 app.delete('/v1/articles/:articleId', verifyToken, (req, res) => {
   const article_id = req.params.articleId
-  const sql = `delete from article where article_id = ? and users_user_id=?`;
-  db.run(sql, [article_id, req.userId], function (err) {
+  const sql = `delete from article where article_id = ${article_id} and users_user_id=${req.userId}`;
+  db.query(sql, (err, result) => {
     if (err) {
       console.log(err)
       return res.json({ "status": "error", "error": "unable to delete the record from database" })
@@ -269,7 +275,7 @@ app.delete('/v1/articles/:articleId', verifyToken, (req, res) => {
       return res.status(200).json({
         "status": "success",
         "data": {
-          "message": `Article with id ${article_id} successfully deleted`
+          "message": "Article successfully deleted"
         }
       })
     }
@@ -286,26 +292,26 @@ app.post('/v1/articles/:articleId/comment', verifyToken, (req, res) => {
   //check if the comment contains at least a character or symbol
   if (patt.test(comment) || patt1.test(comment)) {
     //check if the article to be commented exists
-    let sql = `select * from article where article_id = ?`;
-    db.all(sql, [article_id], function (err, rows) {
-      let answer = rows[0]
-      if (rows.length === 0) {
+    let sql = `select * from article where article_id = ${article_id}`
+    db.query(sql, (err, result) => {
+      let answer = result[0]
+      if (result.length === 0) {
         return res.status(404).json({ "status": "failed", "error": "article does not exists" })
       } else {
         //if article exists, then add a comment
-        sql = `insert into article_comment (users_user_id, article_article_id, comment) values (?,?,?)`;
-        db.run(sql, [req.userId, article_id, comment], function (err) {
+        sql = `insert into article_comment (users_user_id, article_article_id, comment) values (${req.userId},${article_id},'${comment}')`;
+        db.query(sql, (err, details) => {
           if (err) {
             return res.json({ "status": "error", "error": "unable to add comment" })
           } else {
             //get the creation date of the comment
-            sql = `select createdOn from article_comment where comment_id = ?`;
-            db.all(sql, [this.lastID], function (err, rows1) {
+            sql = `select createdOn from article_comment where comment_id = ${details.insertId}`;
+            db.query(sql, (err, result_1) => {
               return res.status(201).json({
                 "status": "success",
                 "data": {
                   "message": "comment successfully created",
-                  "createdOn": rows1[0].createdOn,
+                  "createdOn": result_1[0].createdOn,
                   "articleTitle": answer.title,
                   "article": answer.article,
                   "comment": comment
@@ -322,15 +328,15 @@ app.post('/v1/articles/:articleId/comment', verifyToken, (req, res) => {
 //get an article
 app.get('/v1/articles/:articleId', verifyToken, (req, res) => {
   const article_id = req.params.articleId;
-  let sql = `select * from article where article_id = ?`;
+  let sql = `select * from article where article_id = ${article_id}`;
   //if article is found
-  db.all(sql, [article_id], function (err, rows) {
-    if (rows.length === 0) {
+  db.query(sql, (err, result) => {
+    let answer = result[0];
+    if (result.length === 0) {
       return res.status(404).json({ "status": "Not found", "message": "article doesnt exist or already deleted" })
     } else {
-      let answer = rows[0];
-      sql = `select * from article_comment where article_article_id = ? and users_user_id=?`;
-      db.all(sql, [article_id, req.userId], function (err, details) {
+      sql = `select * from article_comment where article_article_id = ${article_id} and users_user_id=${req.userId}`;
+      db.query(sql, (err, details) => {
 
         return res.status(200).json({
           "status": "success",
@@ -354,20 +360,20 @@ app.post('/v1/gifs', verifyToken, upload.single('image'), (req, res, next) => {
       "status": "bad request", "error": "No gif image specified"
     })
   } else {
-    let sql = `insert into gifs (imageUrl, title, users_user_id) values (?,?,?)`;
-    db.run(sql, ['images/' + req.file.originalname, req.body.title || 'no title', req.userId], function (err) {
+    let sql = `insert into gifs (imageUrl, title, users_user_id) values ("${'images/'+req.file.originalname}","${req.body.title || 'no title'}",${req.userId})`
+    db.query(sql, (err, result) => {
       if (err) {
         return res.status(500).json({ "status": "failed", "error": err })
       } else {
-        sql = `select * from gifs where gif_id=? and users_user_id=?`;
-        db.all(sql, [this.lastID, req.userId], function (err, rows) {
+        sql = `select * from gifs where gif_id=${result.insertId} and users_user_id=${req.userId}`;
+        db.query(sql, (err, result) => {
           return res.status(201).json({
             "status": "success",
             "data": {
-              "gifId": rows[0].gif_id,
+              "gifId": result.gif_id,
               "message": "GIF image successfully posted",
-              "createdOn": rows[0].dateCreated,
-              "title": rows[0].title,
+              "createdOn": result.dateCreated,
+              "title": result.title,
               "imageUrl": 'images/' + req.file.originalname
             }
           })
@@ -380,8 +386,8 @@ app.post('/v1/gifs', verifyToken, upload.single('image'), (req, res, next) => {
 //delete a gif
 app.delete('/v1/gifs/:gifId', verifyToken, (req, res) => {
   const gifId = req.params.gifId;
-  let sql = `delete from gifs where gif_id = ?`;
-  db.run(sql, [gifId], function (err) {
+  let sql = `delete from gifs where gif_id = ${gifId}`;
+  db.query(sql, (err, result) => {
     if (err) {
       return res.status(400).json({ "status": "failed", "error": "unable to delete specified gif image" })
     } else {
@@ -405,21 +411,21 @@ app.post('/v1/gifs/:gifId/comment', verifyToken, (req, res) => {
   //check if the comment contains at least a character or symbol
   if (patt.test(comment) || patt1.test(comment)) {
     //check if the article to be commented exists
-    let sql = `select * from gifs where gif_id = ?`
-    db.all(sql, [gifId], function (err, rows) {
-      if (rows.length === 0) {
+    let sql = `select * from gifs where gif_id = ${gifId}`
+    db.query(sql, (err, result) => {
+      let answer = result[0]
+      if (result.length === 0) {
         return res.status(404).json({ "status": "failed", "error": "gif does not exists" })
       } else {
-        const answer = rows[0];
         //if article exists, then add a comment
-        sql = `insert into gif_comment (comment, gifs_gif_id, users_user_id) values (?,?,?)`;
-        db.run(sql, [comment, gifId, req.userId], function (err) {
+        sql = `insert into gif_comment (comment, gifs_gif_id, users_user_id) values ("${comment}",${gifId},${req.userId})`;
+        db.query(sql, (err, details) => {
           if (err) {
             return res.json({ "status": "error", "error": "unable to add comment" })
           } else {
             //get the creation date of the comment
-            sql = `select createdOn from gif_comment where gif_comment_id = ?`;
-            db.all(sql, [this.lastID], function (err, result_1) {
+            sql = `select createdOn from gif_comment where gif_comment_id = ${details.insertId}`;
+            db.query(sql, (err, result_1) => {
               return res.status(201).json({
                 "status": "success",
                 "data": {
@@ -440,15 +446,16 @@ app.post('/v1/gifs/:gifId/comment', verifyToken, (req, res) => {
 //get a specific gif
 app.get('/v1/gifs/:gifId', verifyToken, (req, res) => {
   const gifId = req.params.gifId;
-  let sql = `select * from gifs where gif_id = ?`;
+  let sql = `select * from gifs where gif_id = ${gifId}`;
   //if article is found
-  db.all(sql, [gifId], function (err, rows) {
-    if (rows.length === 0) {
+  db.query(sql, (err, result) => {
+    let answer = result[0];
+    if (result.length === 0) {
       return res.status(404).json({ "status": "Not found", "message": "gif doesn't exist or already deleted" })
     } else {
-      const answer = rows[0];
-      sql = `select * from gif_comment where gifs_gif_id = ? and users_user_id=?`;
-      db.all(sql, [gifId, req.userId], function (err, details) {
+      sql = `select * from gif_comment where gifs_gif_id = ${gifId} and users_user_id=${req.userId}`;
+      db.query(sql, (err, details) => {
+
         return res.status(200).json({
           "status": "success",
           "data": {
@@ -474,19 +481,12 @@ app.get('/v1/feed', verifyToken, (req, res) => {
 from article
 join users on users.user_id = article.users_user_id;
   `
-  db.all(sql, [], function (err, rows) {
-    const result = rows
+  db.query(sql, (err, result) => {
     if (err) {
-      return res.json({ err })
     } else {
-
-      let sql = `select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname
-      from gifs join users on users.user_id = gifs.users_user_id`;
-
-      db.all(sql, [], function (err, details) {
-        const result1 = details;
-        console.log(result1);
-        let all_feed = result.concat(result1);
+      let sql = 'select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname from gifs join users on users.user_id = gifs.users_user_id'
+      db.query(sql, (err, details) => {
+        let all_feed = result.concat(details);
         all_feed.sort(compare);
         res.status(200).json({
           "status": "success",
@@ -499,20 +499,24 @@ join users on users.user_id = article.users_user_id;
 
 //get all article and gif for a single user
 app.get('/v1/feed/:userId', verifyToken, (req, res) => {
-  let sql = `select * from article where users_user_id = ?`
+  let sql = `
+  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname
+from article
+join users on users.user_id = article.users_user_id
+where users_user_id=${req.userId};
+  `
 
-  db.all(sql, [req.userId], function (err, rows) {
+  db.query(sql, (err, result) => {
     if (err) {
-      return res.json({ err });
+      console.log(err)
     } else {
-      const result = rows;
-      let sql = `select * from gifs where users_user_id = ?`;
-      db.all(sql, [req.userId], function (err, rows) {
-        if (err) {
-          return res.json({ err });
-        }
-        const gif_result = rows;
-        let all_feed = result.concat(gif_result);
+      let sql = `
+      select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname from gifs
+      join users on users.user_id = gifs.users_user_id
+      where users_user_id=${req.userId}`;
+
+      db.query(sql, (err, details) => {
+        let all_feed = result.concat(details);
         all_feed.sort(compare);
         res.status(200).json({
           "status": "success",
@@ -526,7 +530,7 @@ app.get('/v1/feed/:userId', verifyToken, (req, res) => {
 //get all flagged post
 app.get('/v1/flagged', verifyToken, (req, res) => {
   let sql = `select * from article where flagged = 't' `
-  db.all(sql, [], function (err, result) {
+  db.query(sql, (err, result) => {
     if (err) {
       return res.status(400).json({ err })
     } else {
@@ -542,18 +546,19 @@ app.get('/v1/flagged', verifyToken, (req, res) => {
 app.post('/v1/flagged/:articleId', verifyToken, (req, res) => {
   const article_id = req.params.articleId;
   let flagged = 't';
-  let sql = `select * from article where article_id = ?`;
-  db.all(sql, [article_id], function (err, result) {
+  let sql = `select * from article where article_id = ${article_id}`;
+  db.query(sql, (err, result) => {
+    console.log(result);
     if (err) {
       return res.status(400).json({ err });
     } else {
       flagged = result[0].flagged;
       if (flagged == 'f') {
-        sql = `update article set flagged = 't' where article_id = ?`;
+        sql = `update article set flagged = 't' where article_id = ${article_id}`;
       } else {
-        sql = `update article set flagged = 'f' where article_id = ?`;
+        sql = `update article set flagged = 'f' where article_id = ${article_id}`;
       }
-      db.run(sql, [article_id], function (err) {
+      db.query(sql, (err, result) => {
         if (err) {
           return res.status(400).json({ err })
         } else {
@@ -566,7 +571,6 @@ app.post('/v1/flagged/:articleId', verifyToken, (req, res) => {
     }
   })
 })
-
 app.listen(port, (err) => {
   if (err) {
     console.log(err)
