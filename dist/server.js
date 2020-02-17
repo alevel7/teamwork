@@ -28,7 +28,7 @@ var Cors = require('cors');
 var jwt = require('jsonwebtoken');
 
 
-var port = 3000;
+var port = process.env.PORT || 3000;
 var app = (0, _express2.default)();
 
 app.use(function (req, res, next) {
