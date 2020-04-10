@@ -2,11 +2,12 @@ import express from 'express';
 import chalk from 'chalk';
 import mysql from 'mysql';
 import sqlite3 from 'sqlite3';
+import multer from 'multer';
 const bodyParser = require('body-parser');
 const Cors = require('cors')
 
 const jwt = require('jsonwebtoken');
-import multer from 'multer';
+
 
 const port = process.env.PORT || 3000;
 const app = express();
@@ -14,7 +15,7 @@ const app = express();
 
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "POST, GET, DELETE, PUT, OPTIONS");
   res.header("Access-Control-Allow-Headers", "*");
   next();
 });
@@ -23,28 +24,35 @@ app.use('/images', express.static('images'));
 //to store images in a folder in node js
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, './images');
+    const isValid = MIMETYPEMAP[file.mimetype];
+    let error = new Error('invalid mime type');
+    if (isValid) {
+      error = null
+      console.log(file)
+      cb(error, './images');
+    }
+
   },
   filename: function (req, file, cb) {
-    cb(null, file.originalname);
+    const name = file.originalname;
+    cb(null, name);
   }
 })
-//to configure which type of file to accept
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype === 'image/gif') {
-    cb(null, true);
-  } else {
-    cb(null, false)
-  }
+const MIMETYPEMAP = {
+  'image/png': 'png',
+  'image/jpg': 'jpg',
+  'image/jpeg': 'jpg'
 }
+//to configure which type of file to accept
+// const fileFilter = (req, file, cb) => {
+//   if (file.mimetype === 'image/gif') {
+//     cb(null, true);
+//   } else {
+//     cb(null, false)
+//   }
+// }
 const upload = multer({ storage: storage, /*fileFilter*/ });
 
-// const db = mysql.createConnection({
-//   host: 'localhost',
-//   user: 'root',
-//   password: 'Oluranti08056965',
-//   database: 'teamwork'
-// })
 const db = new sqlite3.Database('teamwork.db', (err) => {
   if (err) {
     return console.log(err.message);
@@ -52,17 +60,8 @@ const db = new sqlite3.Database('teamwork.db', (err) => {
   console.log('Connected to database')
 });
 
-// db.connect((err) => {
-//   if (err) {
-//     console.log('database connection error')
-//     throw err
-//   }
-//   console.log('Connected to database')
-// })
-
-
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json()); // parse form data client
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+app.use(bodyParser.json({ limit: '50mb' })); // parse form data client
 
 
 const verifyToken = (req, res, next) => {
@@ -82,7 +81,7 @@ const verifyToken = (req, res, next) => {
   next()
 }
 //routes for creating and authenticating users
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.send('Welcome to the TeamWork')
 })
 
@@ -329,8 +328,8 @@ app.get('/v1/articles/:articleId', verifyToken, (req, res) => {
       return res.status(404).json({ "status": "Not found", "message": "article doesnt exist or already deleted" })
     } else {
       let answer = rows[0];
-      sql = `select * from article_comment where article_article_id = ? and users_user_id=?`;
-      db.all(sql, [article_id, req.userId], function (err, details) {
+      sql = `select * from article_comment where article_article_id = ?`;
+      db.all(sql, [article_id], function (err, details) {
 
         return res.status(200).json({
           "status": "success",
@@ -349,32 +348,35 @@ app.get('/v1/articles/:articleId', verifyToken, (req, res) => {
 
 // post gif
 app.post('/v1/gifs', verifyToken, upload.single('image'), (req, res, next) => {
-  if (req.file === undefined) {
-    return res.status(400).json({
-      "status": "bad request", "error": "No gif image specified"
-    })
-  } else {
-    let sql = `insert into gifs (imageUrl, title, users_user_id) values (?,?,?)`;
-    db.run(sql, ['images/' + req.file.originalname, req.body.title || 'no title', req.userId], function (err) {
-      if (err) {
-        return res.status(500).json({ "status": "failed", "error": err })
-      } else {
-        sql = `select * from gifs where gif_id=? and users_user_id=?`;
-        db.all(sql, [this.lastID, req.userId], function (err, rows) {
-          return res.status(201).json({
-            "status": "success",
-            "data": {
-              "gifId": rows[0].gif_id,
-              "message": "GIF image successfully posted",
-              "createdOn": rows[0].dateCreated,
-              "title": rows[0].title,
-              "imageUrl": 'images/' + req.file.originalname
-            }
-          })
-        })
-      }
-    })
-  }
+  return res.send('your file was uploaded');
+
+  // if (!req.file) {
+  //   console.log(req.file)
+  //   return res.status(400).json({
+  //     "status": "bad request", "error": "No gif image specified"
+  //   })
+  // } else {
+  //   let sql = `insert into gifs (imageUrl, title, users_user_id) values (?,?,?)`;
+  //   db.run(sql, ['images/' + req.file.originalname, req.body.title || 'no title', req.userId], function (err) {
+  //     if (err) {
+  //       return res.status(500).json({ "status": "failed", "error": "there was an erro storing the image" })
+  //     } else {
+  //       sql = `select * from gifs where gif_id=? and users_user_id=?`;
+  //       db.all(sql, [this.lastID, req.userId], function (err, rows) {
+  //         return res.status(201).json({
+  //           "status": "success",
+  //           "data": {
+  //             "gifId": rows[0].gif_id,
+  //             "message": "GIF image successfully posted",
+  //             "createdOn": rows[0].dateCreated,
+  //             "title": rows[0].title,
+  //             "imageUrl": 'images/' + req.file.originalname
+  //           }
+  //         })
+  //       })
+  //     }
+  //   })
+  // }
 })
 
 //delete a gif

@@ -4,7 +4,7 @@
   "description": "JavaScript development environment Pluralsight course by Cory House",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "nodemon src/dev",
     "lint": "eslint .",
     "test": " nyc mocha --require @babel/ test/tests.js --exit",
     "build": "npm run clean && mkdir dist && babel src -s -d dist",
