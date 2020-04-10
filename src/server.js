@@ -120,7 +120,8 @@ app.post('/v1/auth/signin', (req, res) => {
           "status": "success",
           "data": {
             "token": token,
-            "userId": payload.user_id
+            "userId": payload.user_id,
+            "userData": result
           }
         })
       } else {
