@@ -50,6 +50,7 @@ var errHandler = function errHandler(err, req, res, next) {
   }
 };
 app.use(errHandler);
+app.use(Cors());
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json()); // parse form data client
@@ -88,9 +89,6 @@ app.get('/v1/users', verifyToken, function (req, res) {
     }
   });
 });
-
-//add comment to a gif
-app.post('/v1/gifs/:gifId/comment', verifyToken, function (req, res) {});
 
 var compare = function compare(a, b) {
   if (a.dateCreated > b.dateCreated) {
