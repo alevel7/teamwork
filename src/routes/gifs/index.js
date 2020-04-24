@@ -5,9 +5,31 @@ import db from '../../db';
 // route to post a gif
 gifRouter.route("/")
 .post((req, res) => {
-  console.log(req.file);
-  return res.json({'status':'success', 'data':"file upload successfull", "file":req.file});
-})
+  const file = req.file;
+  const title = req.body.title;
+  if (!file){
+    return res.status(400).json({"status":"error", "data":"No image was selected"})
+  } else if (title === "" || title === null){
+    return res.status(400).json({"status":"error", "data":"No title was provided"})
+  }
+  let sql = `insert into gifs (imageUrl,title,users_user_id) values (?,?,?)`;
+  db.run(sql, [file.filename, title, req.userId], function(err){
+    if (err) {
+      return res.status(400).json({ err })
+    }
+    db.all(`select * from gifs where gif_id = ${this.lastID}`, [], function (err, rows) {
+      return res.status(200).json({
+        "status": "success",
+        "data": {
+          "message": "image successfully posted",
+          "imageId": rows[0].gif_id,
+          "createdOn": rows[0].dateCreated,
+          "title": rows[0].title,
+          "imageUrl": rows[0].imageUrl
+        }
+  })
+  })
+  })})
 
 //working with a single gif
 gifRouter.route("/:gifId")

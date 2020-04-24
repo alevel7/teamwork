@@ -37,7 +37,7 @@ const errHandler=(err, req, res, next) => {
   }
 }
 app.use(errHandler);
-
+app.use(Cors())
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json()); // parse form data client
@@ -75,11 +75,6 @@ app.get('/v1/users', verifyToken, (req, res) => {
       return res.status(200).json(result);
     }
   })
-})
-
-//add comment to a gif
-app.post('/v1/gifs/:gifId/comment', verifyToken, (req, res) => {
-
 })
 
 const compare = (a, b) => {
