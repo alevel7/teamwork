@@ -79,7 +79,7 @@ app.get('/v1/users', verifyToken, (req, res) => {
 
 //add comment to a gif
 app.post('/v1/gifs/:gifId/comment', verifyToken, (req, res) => {
- 
+
 })
 
 const compare = (a, b) => {
