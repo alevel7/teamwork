@@ -81,7 +81,7 @@ MainUserRouter.route("/users").post((req, res) => {
         })
       }
       let sql = `insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values
-       ('${firstName}','${lastName}','${email}','${password}','${gender}','${jobrole}','${dept}','${address}','${'images/' + req.file.originalname}')`
+       ('${firstName}','${lastName}','${email}','${password}','${gender}','${jobrole}','${dept}','${address}','${req.file.originalname}')`
       db.all(sql, [], (err, result) => {
         if (err) {
           console.log("there was an error executing script")

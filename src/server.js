@@ -83,7 +83,7 @@ const compare = (a, b) => {
 //get all articles and gif
 app.get('/v1/feed', verifyToken, (req, res) => {
   let sql = `
-  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname
+  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname,userImage
 from article
 join users on users.user_id = article.users_user_id;
   `
@@ -93,12 +93,11 @@ join users on users.user_id = article.users_user_id;
       return res.json({ err })
     } else {
 
-      let sql = `select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname
+      let sql = `select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname,userImage
       from gifs join users on users.user_id = gifs.users_user_id`;
 
       db.all(sql, [], function (err, details) {
         const result1 = details;
-        console.log(result1);
         let all_feed = result.concat(result1);
         all_feed.sort(compare);
         res.status(200).json({
