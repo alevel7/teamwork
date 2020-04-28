@@ -101,18 +101,17 @@ var compare = function compare(a, b) {
 };
 //get all articles and gif
 app.get('/v1/feed', verifyToken, function (req, res) {
-  var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname\nfrom article\njoin users on users.user_id = article.users_user_id;\n  ';
+  var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname,userImage\nfrom article\njoin users on users.user_id = article.users_user_id;\n  ';
   db.all(sql, [], function (err, rows) {
     var result = rows;
     if (err) {
       return res.json({ err: err });
     } else {
 
-      var _sql = 'select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname\n      from gifs join users on users.user_id = gifs.users_user_id';
+      var _sql = 'select gif_id,imageUrl,title,dateCreated,users_user_id, firstname,lastname,userImage\n      from gifs join users on users.user_id = gifs.users_user_id';
 
       db.all(_sql, [], function (err, details) {
         var result1 = details;
-        console.log(result1);
         var all_feed = result.concat(result1);
         all_feed.sort(compare);
         res.status(200).json({

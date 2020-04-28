@@ -87,7 +87,7 @@ MainUserRouter.route("/users").post(function (req, res) {
         "error": "email is invalid"
       });
     }
-    var sql = 'insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values\n       (\'' + firstName + '\',\'' + lastName + '\',\'' + email + '\',\'' + password + '\',\'' + gender + '\',\'' + jobrole + '\',\'' + dept + '\',\'' + address + '\',\'' + ('images/' + req.file.originalname) + '\')';
+    var sql = 'insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values\n       (\'' + firstName + '\',\'' + lastName + '\',\'' + email + '\',\'' + password + '\',\'' + gender + '\',\'' + jobrole + '\',\'' + dept + '\',\'' + address + '\',\'' + req.file.originalname + '\')';
     _db2.default.all(sql, [], function (err, result) {
       if (err) {
         console.log("there was an error executing script");

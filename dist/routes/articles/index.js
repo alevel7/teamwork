@@ -21,14 +21,15 @@ ArticleRouter.route("/").post(function (req, res) {
       if (err) {
         return res.status(400).json({ err: err });
       }
-      _db2.default.all('select * from article where article_id = ' + this.lastID, [], function (err, rows) {
+      _db2.default.all('select article_id, title, dateCreated, article, firstName, lastName from article\n      join users\n      on article.users_user_id = users.user_id\n      where article_id = ' + this.lastID, [], function (err, rows) {
         return res.status(200).json({
           "status": "success",
           "data": {
             "message": "article successfully posted",
             "articleId": rows[0].article_id,
-            "createdOn": rows[0].createdOn,
-            "title": rows[0].title
+            "createdOn": rows[0].dateCreated,
+            "title": rows[0].title,
+            "article": rows[0].article
           }
         });
       });
@@ -41,7 +42,6 @@ ArticleRouter.route("/:articleId").patch(function (req, res) {
   var article_id = req.params.articleId;
   var title = req.body.title || 'no title';
   var article = req.body.article;
-  console.log(article_id, title, article);
   if (title === '' || article === '') {
     return res.status(400).json({ "status": "invalid input", "error": "title and article must be supplied" });
   } else {
@@ -71,7 +71,6 @@ ArticleRouter.route("/:articleId").patch(function (req, res) {
   var sql = 'delete from article where article_id = ? and users_user_id=?';
   _db2.default.run(sql, [article_id, req.userId], function (err) {
     if (err) {
-      console.log(err);
       return res.json({ "status": "error", "error": "unable to delete the record from database" });
     } else {
       return res.status(200).json({
@@ -91,7 +90,7 @@ ArticleRouter.route("/:articleId").patch(function (req, res) {
       return res.status(404).json({ "status": "Not found", "message": "article doesnt exist or already deleted" });
     } else {
       var answer = rows[0];
-      sql = 'select * from article_comment where article_article_id = ?';
+      sql = 'select comment_id, comment, article_article_id,article_comment.createdOn,firstname, lastname,userimage from article_comment\n      join users on article_comment.users_user_id = users.user_id where article_article_id = ?';
       _db2.default.all(sql, [article_id], function (err, details) {
 
         return res.status(200).json({
