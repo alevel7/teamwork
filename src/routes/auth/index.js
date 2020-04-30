@@ -66,26 +66,31 @@ MainUserRouter.route("/users").post((req, res) => {
       const gender = user.gender
       const jobrole = user.jobRole
       const dept = user.dept
-      const address = user.address
-      if (firstName.length < 1 || lastName.length < 0 || dept.length < 0) {
+      const address = user.address || null
+      let pattern = /^[a-zA-Z0-9]+@[\w]+\.com$/i
+      if (firstName.length < 1 || lastName.length < 1 || password.length < 5) {
         return res.status(401).json({
           "status": "forbidden",
-          "error": "one or more required field not supplied"
+          "error": "one or more required field not valid or supplied"
         })
-      }
-      let pattern = /^[a-zA-Z0-9]+@[\w]+\.com$/i
-      if (!pattern.test(email)) {
+      }else if (!pattern.test(email)) {
         return res.status(401).json({
           "status": "forbidden",
           "error": "email is invalid"
         })
       }
-      let sql = `insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values
+      let sql = `select * from users where email = ?`;
+      db.all(sql, [email], (err, result) => {
+        if (result.length > 0) {
+          return res.status(400).json({
+            "status": "error",
+            "message": "email already exists"
+          })
+        }else {
+          sql = `insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values
        ('${firstName}','${lastName}','${email}','${password}','${gender}','${jobrole}','${dept}','${address}','${req.file.originalname}')`
       db.all(sql, [], (err, result) => {
         if (err) {
-          console.log("there was an error executing script")
-          console.log(err)
           res.send(err)
         } else {
           let payload = { user_id: result.insertId }
@@ -96,6 +101,8 @@ MainUserRouter.route("/users").post((req, res) => {
             "token": token,
             "userId": result.insertId
           })
+        }
+      })
         }
       })
     }

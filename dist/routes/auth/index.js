@@ -73,34 +73,41 @@ MainUserRouter.route("/users").post(function (req, res) {
     var gender = user.gender;
     var jobrole = user.jobRole;
     var dept = user.dept;
-    var address = user.address;
-    if (firstName.length < 1 || lastName.length < 0 || dept.length < 0) {
+    var address = user.address || null;
+    var pattern = /^[a-zA-Z0-9]+@[\w]+\.com$/i;
+    if (firstName.length < 1 || lastName.length < 1 || password.length < 5) {
       return res.status(401).json({
         "status": "forbidden",
-        "error": "one or more required field not supplied"
+        "error": "one or more required field not valid or supplied"
       });
-    }
-    var pattern = /^[a-zA-Z0-9]+@[\w]+\.com$/i;
-    if (!pattern.test(email)) {
+    } else if (!pattern.test(email)) {
       return res.status(401).json({
         "status": "forbidden",
         "error": "email is invalid"
       });
     }
-    var sql = 'insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values\n       (\'' + firstName + '\',\'' + lastName + '\',\'' + email + '\',\'' + password + '\',\'' + gender + '\',\'' + jobrole + '\',\'' + dept + '\',\'' + address + '\',\'' + req.file.originalname + '\')';
-    _db2.default.all(sql, [], function (err, result) {
-      if (err) {
-        console.log("there was an error executing script");
-        console.log(err);
-        res.send(err);
+    var sql = 'select * from users where email = ?';
+    _db2.default.all(sql, [email], function (err, result) {
+      if (result.length > 0) {
+        return res.status(400).json({
+          "status": "error",
+          "message": "email already exists"
+        });
       } else {
-        var payload = { user_id: result.insertId };
-        var token = jwt.sign(payload, 'secretkey');
-        res.status(201).json({
-          "status": "success",
-          "message": "User account successfully created",
-          "token": token,
-          "userId": result.insertId
+        sql = 'insert into users (firstName, lastName, email, password, gender, jobRole, dept, address, userImage) values\n       (\'' + firstName + '\',\'' + lastName + '\',\'' + email + '\',\'' + password + '\',\'' + gender + '\',\'' + jobrole + '\',\'' + dept + '\',\'' + address + '\',\'' + req.file.originalname + '\')';
+        _db2.default.all(sql, [], function (err, result) {
+          if (err) {
+            res.send(err);
+          } else {
+            var payload = { user_id: result.insertId };
+            var token = jwt.sign(payload, 'secretkey');
+            res.status(201).json({
+              "status": "success",
+              "message": "User account successfully created",
+              "token": token,
+              "userId": result.insertId
+            });
+          }
         });
       }
     });
