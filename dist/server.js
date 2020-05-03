@@ -101,7 +101,7 @@ var compare = function compare(a, b) {
 };
 //get all articles and gif
 app.get('/v1/feed', verifyToken, function (req, res) {
-  var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname,userImage\nfrom article\njoin users on users.user_id = article.users_user_id;\n  ';
+  var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname,userImage\nfrom article\njoin users on users.user_id = article.users_user_id\nwhere flagged = \'f\';\n  ';
   db.all(sql, [], function (err, rows) {
     var result = rows;
     if (err) {
@@ -184,7 +184,7 @@ app.post('/v1/flagged/:articleId', verifyToken, function (req, res) {
           return res.status(400).json({ err: err });
         } else {
           return res.status(200).json({
-            "message": "flagged successfully",
+            "message": flagged === 't' ? "unflagged successfully" : 'flagged successfully',
             "article_id": article_id
           });
         }
