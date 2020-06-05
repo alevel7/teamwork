@@ -84,9 +84,9 @@ const compare = (a, b) => {
 app.get('/v1/feed', verifyToken, (req, res) => {
   let sql = `
   select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname,userImage
-from article
-join users on users.user_id = article.users_user_id
-where flagged = 'f';
+  from article
+  join users on users.user_id = article.users_user_id
+  where flagged = 'f';
   `
   db.all(sql, [], function (err, rows) {
     const result = rows

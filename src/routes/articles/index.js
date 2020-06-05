@@ -85,14 +85,14 @@ ArticleRouter.route("/:articleId")
 })
 .get((req, res) => {
   const article_id = req.params.articleId;
-  let sql = `select * from article where article_id = ?`;
+  let sql = `select article_id, title, article, datetime(datecreated, 'localtime') 'datecreated', flagged, users_user_id from article where article_id = ?`;
   //if article is found
   db.all(sql, [article_id], function (err, rows) {
     if (rows.length === 0) {
       return res.status(404).json({ "status": "Not found", "message": "article doesnt exist or already deleted" })
     } else {
       let answer = rows[0];
-      sql = `select comment_id, comment, article_article_id,article_comment.createdOn,firstname, lastname,userimage from article_comment
+      sql = `select comment_id, comment, article_article_id,datetime(article_comment.createdOn, 'localtime') 'createdon',firstname, lastname,userimage from article_comment
       join users on article_comment.users_user_id = users.user_id where article_article_id = ?`;
       db.all(sql, [article_id], function (err, details) {
 
