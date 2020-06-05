@@ -101,7 +101,7 @@ var compare = function compare(a, b) {
 };
 //get all articles and gif
 app.get('/v1/feed', verifyToken, function (req, res) {
-  var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname,userImage\nfrom article\njoin users on users.user_id = article.users_user_id\nwhere flagged = \'f\';\n  ';
+  var sql = '\n  select article_id,title,article,dateCreated,users_user_id,flagged,firstName,lastname,userImage\n  from article\n  join users on users.user_id = article.users_user_id\n  where flagged = \'f\';\n  ';
   db.all(sql, [], function (err, rows) {
     var result = rows;
     if (err) {
