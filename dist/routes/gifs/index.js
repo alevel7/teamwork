@@ -41,23 +41,25 @@ gifRouter.route("/").post(function (req, res) {
 //working with a single gif
 gifRouter.route("/:gifId").get(function (req, res) {
   var gifId = req.params.gifId;
-  var sql = 'select gif_id, imageurl, title, datetime(datecreated, \'localtime\') \'datecreated\',userimage from gifs\n  join users\n  on users.user_id = gifs.users_user_id\n  where gif_id = ?';
+  var sql = 'select gif_id, imageurl, title, datetime(datecreated, \'localtime\') \'datecreated\',userimage,firstname,lastname from gifs\n  join users\n  on users.user_id = gifs.users_user_id\n  where gif_id = ?';
   //if article is found
   _db2.default.all(sql, [gifId], function (err, rows) {
     if (rows.length === 0) {
       return res.status(404).json({ "status": "error", "message": "gif doesn't exist or already deleted" });
     } else {
       var answer = rows[0];
-      sql = 'select gif_comment_id, comment, datetime(gif_comment.createdOn, \'localtime\') \'createdon\', userimage from gif_comment\n      join users on gif_comment.users_user_id = users.user_id\n      where gif_comment.gifs_gif_id = ?';
+      sql = 'select gif_comment_id, comment, datetime(gif_comment.createdOn, \'localtime\') \'createdon\', userimage,firstname,lastname from gif_comment\n      join users on gif_comment.users_user_id = users.user_id\n      where gif_comment.gifs_gif_id = ?';
       _db2.default.all(sql, [gifId], function (err, details) {
         return res.status(200).json({
           "status": "success",
           "data": {
             "id": answer.gif_id,
-            "createdOn": answer.dateCreated,
+            "datecreated": answer.datecreated,
             "title": answer.title,
             "url": answer.imageUrl,
             "userImage": answer.userImage,
+            "firstname": answer.firstName,
+            "lastname": answer.lastName,
             "comments": details
           }
         });

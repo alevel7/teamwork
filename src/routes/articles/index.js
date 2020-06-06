@@ -85,7 +85,9 @@ ArticleRouter.route("/:articleId")
 })
 .get((req, res) => {
   const article_id = req.params.articleId;
-  let sql = `select article_id, title, article, datetime(datecreated, 'localtime') 'datecreated', flagged, users_user_id from article where article_id = ?`;
+  let sql = `select article_id, title, article, datetime(datecreated, 'localtime') 'datecreated',firstname, lastname, userImage, flagged, users_user_id from article
+  join users
+  on article.users_user_id = users.user_id where article_id = ?`;
   //if article is found
   db.all(sql, [article_id], function (err, rows) {
     if (rows.length === 0) {
@@ -100,9 +102,12 @@ ArticleRouter.route("/:articleId")
           "status": "success",
           "data": {
             "id": answer.article_id,
-            "createdOn": answer.dateCreated,
+            "createdOn": answer.datecreated,
             "title": answer.title,
             "article": answer.article,
+            "firstname":answer.firstName,
+            "lastname": answer.lastName,
+            "userimage":answer.userImage,
             "comments": details
           }
         })

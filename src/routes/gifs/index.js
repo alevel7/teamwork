@@ -35,7 +35,7 @@ gifRouter.route("/")
 gifRouter.route("/:gifId")
 .get((req, res) => {
   const gifId = req.params.gifId;
-  let sql = `select gif_id, imageurl, title, datetime(datecreated, 'localtime') 'datecreated',userimage from gifs
+  let sql = `select gif_id, imageurl, title, datetime(datecreated, 'localtime') 'datecreated',userimage,firstname,lastname from gifs
   join users
   on users.user_id = gifs.users_user_id
   where gif_id = ?`;
@@ -45,7 +45,7 @@ gifRouter.route("/:gifId")
       return res.status(404).json({ "status": "error", "message": "gif doesn't exist or already deleted" })
     } else {
       const answer = rows[0];
-      sql = `select gif_comment_id, comment, datetime(gif_comment.createdOn, 'localtime') 'createdon', userimage from gif_comment
+      sql = `select gif_comment_id, comment, datetime(gif_comment.createdOn, 'localtime') 'createdon', userimage,firstname,lastname from gif_comment
       join users on gif_comment.users_user_id = users.user_id
       where gif_comment.gifs_gif_id = ?`;
       db.all(sql, [gifId], function (err, details) {
@@ -53,10 +53,12 @@ gifRouter.route("/:gifId")
           "status": "success",
           "data": {
             "id": answer.gif_id,
-            "createdOn": answer.dateCreated,
+            "datecreated": answer.datecreated,
             "title": answer.title,
             "url": answer.imageUrl,
             "userImage":answer.userImage,
+            "firstname":answer.firstName,
+            "lastname":answer.lastName,
             "comments": details
           }
         })

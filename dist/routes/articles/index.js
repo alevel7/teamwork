@@ -83,7 +83,7 @@ ArticleRouter.route("/:articleId").patch(function (req, res) {
   });
 }).get(function (req, res) {
   var article_id = req.params.articleId;
-  var sql = 'select article_id, title, article, datetime(datecreated, \'localtime\') \'datecreated\', flagged, users_user_id from article where article_id = ?';
+  var sql = 'select article_id, title, article, datetime(datecreated, \'localtime\') \'datecreated\',firstname, lastname, userImage, flagged, users_user_id from article\n  join users\n  on article.users_user_id = users.user_id where article_id = ?';
   //if article is found
   _db2.default.all(sql, [article_id], function (err, rows) {
     if (rows.length === 0) {
@@ -97,9 +97,12 @@ ArticleRouter.route("/:articleId").patch(function (req, res) {
           "status": "success",
           "data": {
             "id": answer.article_id,
-            "createdOn": answer.dateCreated,
+            "createdOn": answer.datecreated,
             "title": answer.title,
             "article": answer.article,
+            "firstname": answer.firstName,
+            "lastname": answer.lastName,
+            "userimage": answer.userImage,
             "comments": details
           }
         });
